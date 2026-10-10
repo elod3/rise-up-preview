@@ -105,7 +105,10 @@
   const heroVeil  = document.querySelector('.hero-veil');
   const heroFade  = [...document.querySelectorAll('.hero-sub,.hero-verse,.hero-ctas,.scroll-hint')];
 
-  if (hero && stage && slot && frame && !reduceMotion){
+  /* Daca scena nu e "sticky" (ecran scund sau prefers-reduced-motion),
+     hero-ul e o sectiune obisnuita si nu avem ce anima. */
+  const stickyStage = stage && getComputedStyle(stage).position === 'sticky';
+  if (hero && stage && slot && frame && stickyStage && !reduceMotion){
     const clamp = (v) => v < 0 ? 0 : v > 1 ? 1 : v;
     const lerp  = (a, b, k) => a + (b - a) * k;
     const ease  = (k) => 1 - Math.pow(1 - k, 3);   /* porneste repede, aterizeaza lin */

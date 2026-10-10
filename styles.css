@@ -240,7 +240,7 @@ h1,h2,h3,h4{font-family:var(--display);font-weight:800;line-height:1.06;letter-s
 }
 .hero-inner{
   position:relative;z-index:3;width:100%;max-width:var(--max);margin:0 auto;
-  padding:106px clamp(20px,4vw,46px) 86px;
+  padding:106px clamp(20px,4vw,46px) 110px;   /* jos lasam loc pentru "Coboara" */
   display:flex;flex-direction:column;align-items:center;text-align:center;
 }
 @keyframes fadeUp{from{opacity:0;transform:translateY(28px)}to{opacity:1;transform:none}}
@@ -254,9 +254,13 @@ h1,h2,h3,h4{font-family:var(--display);font-weight:800;line-height:1.06;letter-s
 .hero-ctas{animation-delay:.86s}
 .scroll-hint{animation:fadeUp 1s 1.2s var(--ease) backwards}
 
-/* Locul afisului: tine spatiul in pagina. Rama din el e cea care creste. */
+/* Locul afisului: tine spatiul in pagina. Rama din el e cea care creste.
+   Latimea e limitata si de inaltimea ecranului: ~500px din ecran sunt luati
+   de navbar, text, butoane si "Coboara", iar ce ramane imparte la 16/9.
+   Fara asta, pe laptop afisul impingea butoanele afara din ecran. */
 .hero-slot{
-  position:relative;width:100%;max-width:940px;aspect-ratio:16/9;
+  position:relative;aspect-ratio:16/9;
+  width:min(100%, 940px, calc((100svh - 500px) * 16 / 9));
   margin-bottom:clamp(26px,4vh,40px);
 }
 .hero-frame{
@@ -481,6 +485,13 @@ footer{border-top:1px solid var(--card-brd);padding:60px clamp(20px,4vw,46px) 36
   .hero-frame{border-radius:14px}
   .hero-slot{margin-bottom:24px}
   .scroll-hint{bottom:14px}
+}
+/* Ecran prea scund (telefon mic in portret, orice in peisaj): nu mai incape
+   nici afisul mic, nici textul, deci renuntam la efect si lasam pagina sa
+   curga normal. JS-ul vede ca scena nu mai e "sticky" si nu porneste. */
+@media (max-height:700px){
+  #hero{height:auto}
+  .hero-stage{position:static;height:auto;min-height:100svh}
 }
 @media (prefers-reduced-motion:reduce){
   /* fara efectul de scroll, hero-ul e o sectiune normala de un ecran */
