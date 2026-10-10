@@ -93,45 +93,82 @@
   }
 
   /* ─────────── HERO LA SCROLL ───────────
-     Afișul crește, apoi se stinge odată cu fundalul neclar. Ce rămâne
-     în spate e cerul cu stele (#stars), care e fix pe toată pagina. */
-  const hero       = document.getElementById('hero');
-  const heroMedia  = document.querySelector('.hero-media');
-  const heroVeil   = document.querySelector('.hero-veil');
-  const heroPoster = document.querySelector('.hero-poster');
-  const heroFade   = [...document.querySelectorAll('.hero-sub,.hero-verse,.hero-ctas,.scroll-hint')];
+     Afişul creşte din ramă până umple ecranul, stă aşa o clipă, apoi se
+     stinge odată cu fundalul neclar — rămâne cerul cu stele, şi abia apoi
+     vine restul conţinutului. Toată mişcarea ţine cât e #hero mai înalt
+     decât ecranul (vezi height:200svh în CSS). */
+  const hero   = document.getElementById('hero');
+  const stage  = document.querySelector('.hero-stage');
+  const slot   = document.querySelector('.hero-slot');
+  const frame  = document.querySelector('.hero-frame');
+  const heroMedia = document.querySelector('.hero-media');
+  const heroVeil  = document.querySelector('.hero-veil');
+  const heroFade  = [...document.querySelectorAll('.hero-sub,.hero-verse,.hero-ctas,.scroll-hint')];
 
-  if (hero && heroPoster && !reduceMotion){
+  if (hero && stage && slot && frame && !reduceMotion){
     const clamp = (v) => v < 0 ? 0 : v > 1 ? 1 : v;
-    let queued = false;
+    const lerp  = (a, b, k) => a + (b - a) * k;
+    const ease  = (k) => 1 - Math.pow(1 - k, 3);   /* porneste repede, aterizeaza lin */
+
+    let queued = false, ready = false;
 
     const paint = () => {
       queued = false;
-      /* p = 0 cand esti sus de tot, 1 cand hero-ul aproape a iesit din ecran */
-      const p = clamp(window.scrollY / Math.max(1, hero.offsetHeight * 0.85));
+      const span = Math.max(1, hero.offsetHeight - stage.offsetHeight);
+      const p = clamp((window.scrollY - hero.offsetTop) / span);
 
-      /* intai creste (tot drumul), si abia de pe la ~38% incepe sa se stinga */
-      heroPoster.style.transform = 'scale(' + (1 + p * 0.5).toFixed(4) + ')';
-      heroPoster.style.opacity   = clamp((0.88 - p) / 0.5).toFixed(3);
+      /* 1. cresterea: de la rama la tot ecranul, in prima jumatate */
+      const g = ease(clamp(p / 0.55));
+      if (ready){
+        const r = slot.getBoundingClientRect();
+        const s = stage.getBoundingClientRect();
+        /* Pe ecran lat umplem tot ecranul. Pe telefon ne oprim la toata latimea,
+           pastrand 16:9 — altfel "cover" ar taia jumatate din afis, iar "contain"
+           ar lasa doua benzi negre uriase. */
+        const wide = s.width / s.height >= 1.15;
+        const tw = s.width;
+        const th = wide ? s.height : s.width * 9 / 16;
+        const tl = s.left;
+        const tt = s.top + (s.height - th) / 2;
+        frame.style.left   = lerp(r.left,   tl, g).toFixed(1) + 'px';
+        frame.style.top    = lerp(r.top,    tt, g).toFixed(1) + 'px';
+        frame.style.width  = lerp(r.width,  tw, g).toFixed(1) + 'px';
+        frame.style.height = lerp(r.height, th, g).toFixed(1) + 'px';
+        frame.style.borderRadius = (18 * (1 - g)).toFixed(1) + 'px';
+      }
 
-      /* textul pleaca mai devreme, ca sa nu se bata cu afisul care creste */
-      const textOp = clamp((0.42 - p) / 0.34);
+      /* 2. textul pleaca primul, ca sa nu fie acoperit de afisul care creste */
+      const textOp = clamp((0.26 - p) / 0.22);
       heroFade.forEach(el => { el.style.opacity = textOp.toFixed(3); });
 
-      /* poza din fundal se duce si ea — la final ramane doar cerul cu stele */
-      const bgOp = clamp((1 - p) / 0.45).toFixed(3);
+      /* 3. afisul se stinge dupa ce a stat o clipa pe tot ecranul */
+      frame.style.opacity = clamp((0.94 - p) / 0.22).toFixed(3);
+
+      /* 4. la urma se duce si fundalul neclar — ramane doar cerul cu stele */
+      const bgOp = clamp((1 - p) / 0.2).toFixed(3);
       if (heroMedia){
         heroMedia.style.opacity = bgOp;
-        heroMedia.style.transform = 'translateY(' + (p * 60).toFixed(1) + 'px)';
+        /* Fundalul se apropie si el putin, ca sa nu para inghetat. Scalam
+           invelisul, nu poza: poza are deja scale(1.32) din CSS, marja de care
+           are nevoie blur-ul ca sa nu lase o dunga deschisa pe margini. */
+        heroMedia.style.transform = 'scale(' + (1 + g * 0.18).toFixed(3) + ')';
       }
-      if (heroVeil) heroVeil.style.opacity = bgOp;
+      if (heroVeil)  heroVeil.style.opacity  = bgOp;
     };
 
-    let ready = false;
     const arm = () => {
       if (ready) return;
       ready = true;
       hero.classList.add('scroll-ready');   /* de aici inainte comanda scroll-ul */
+      /* Rama iese din flux ca sa poata creste peste tot ecranul; "hero-slot"
+         ramane pe loc si tine spatiul, ca sa nu sara textul de dedesubt. */
+      const r = slot.getBoundingClientRect();
+      frame.style.position    = 'fixed';
+      frame.style.borderColor = 'transparent';
+      frame.style.left   = r.left   + 'px';
+      frame.style.top    = r.top    + 'px';
+      frame.style.width  = r.width  + 'px';
+      frame.style.height = r.height + 'px';
       paint();
     };
 
