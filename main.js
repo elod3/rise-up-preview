@@ -49,7 +49,7 @@
     enrollBtn.setAttribute('aria-disabled', 'true');
     enrollBtn.addEventListener('click', (e) => {
       e.preventDefault();
-      enrollNote.textContent = 'Înscrierile s-au încheiat. Ne vedem la ediția următoare! 🔥';
+      enrollNote.textContent = 'Înscrierile s-au încheiat. Ne vedem la ediția următoare! ✨';
       enrollNote.style.color = 'var(--fire)';
     });
   } else if (agree && enrollBtn && enrollNote){
@@ -73,7 +73,7 @@
       const url = enrollBtn.dataset.href;
       e.preventDefault();
       if (!url){
-        enrollNote.textContent = 'Linkul de înscriere va fi disponibil în curând. Mulțumim! 🔥';
+        enrollNote.textContent = 'Linkul de înscriere va fi disponibil în curând. Mulțumim! ✨';
         enrollNote.style.color = 'var(--fire)';
       } else {
         window.open(url, '_blank', 'noopener');
@@ -92,46 +92,120 @@
     reveals.forEach(r => io.observe(r));
   }
 
-  /* ─────────── PARALLAX UȘOR PE HERO ─────────── */
-  const heroMedia = document.querySelector('.hero-media');
-  if (heroMedia && !reduceMotion){
-    window.addEventListener('scroll', () => {
-      const y = window.scrollY;
-      if (y < window.innerHeight * 1.3) heroMedia.style.transform = `translateY(${y * 0.18}px) scale(1.05)`;
-    }, { passive:true });
+  /* ─────────── HERO LA SCROLL ───────────
+     Afișul crește, apoi se stinge odată cu fundalul neclar. Ce rămâne
+     în spate e cerul cu stele (#stars), care e fix pe toată pagina. */
+  const hero       = document.getElementById('hero');
+  const heroMedia  = document.querySelector('.hero-media');
+  const heroVeil   = document.querySelector('.hero-veil');
+  const heroPoster = document.querySelector('.hero-poster');
+  const heroFade   = [...document.querySelectorAll('.hero-sub,.hero-verse,.hero-ctas,.scroll-hint')];
+
+  if (hero && heroPoster && !reduceMotion){
+    const clamp = (v) => v < 0 ? 0 : v > 1 ? 1 : v;
+    let queued = false;
+
+    const paint = () => {
+      queued = false;
+      /* p = 0 cand esti sus de tot, 1 cand hero-ul aproape a iesit din ecran */
+      const p = clamp(window.scrollY / Math.max(1, hero.offsetHeight * 0.85));
+
+      /* intai creste (tot drumul), si abia de pe la ~38% incepe sa se stinga */
+      heroPoster.style.transform = 'scale(' + (1 + p * 0.5).toFixed(4) + ')';
+      heroPoster.style.opacity   = clamp((0.88 - p) / 0.5).toFixed(3);
+
+      /* textul pleaca mai devreme, ca sa nu se bata cu afisul care creste */
+      const textOp = clamp((0.42 - p) / 0.34);
+      heroFade.forEach(el => { el.style.opacity = textOp.toFixed(3); });
+
+      /* poza din fundal se duce si ea — la final ramane doar cerul cu stele */
+      const bgOp = clamp((1 - p) / 0.45).toFixed(3);
+      if (heroMedia){
+        heroMedia.style.opacity = bgOp;
+        heroMedia.style.transform = 'translateY(' + (p * 60).toFixed(1) + 'px)';
+      }
+      if (heroVeil) heroVeil.style.opacity = bgOp;
+    };
+
+    let ready = false;
+    const arm = () => {
+      if (ready) return;
+      ready = true;
+      hero.classList.add('scroll-ready');   /* de aici inainte comanda scroll-ul */
+      paint();
+    };
+
+    const onHeroScroll = () => {
+      arm();
+      if (!queued){ queued = true; requestAnimationFrame(paint); }
+    };
+    window.addEventListener('scroll', onHeroScroll, { passive:true });
+    window.addEventListener('resize', onHeroScroll, { passive:true });
+    /* daca nimeni nu da scroll, armam dupa ce se termina animatia de intrare */
+    setTimeout(arm, 1900);
   }
 
-  /* ─────────── PARTICULE DE FOC PE HERO ─────────── */
-  const cv = document.getElementById('embers');
-  if (cv && !reduceMotion){
-    const host = cv.parentElement;
+  /* ─────────── CER CU STELE (fundal fix, toată pagina) ─────────── */
+  const cv = document.getElementById('stars');
+  if (cv){
     const ctx = cv.getContext('2d');
-    let on = true;
-    const size = () => { cv.width = host.clientWidth; cv.height = host.clientHeight; };
-    size(); window.addEventListener('resize', size);
-    const N = innerWidth < 860 ? 26 : 52;
-    const make = (bottom) => ({
-      x: Math.random()*cv.width,
-      y: bottom ? cv.height + 10 : Math.random()*cv.height,
-      r: Math.random()*1.9 + .5,
-      s: Math.random()*.6 + .2,
-      d: Math.random()*.5 - .25,
-      a: Math.random()*.5 + .15,
+    let dpr = 1, W = 0, H = 0, ps = [];
+
+    const make = () => ({
+      x:  Math.random() * W,
+      y:  Math.random() * H,
+      r:  Math.random() * 1.4 + 0.35,
+      a:  Math.random() * 0.4 + 0.22,   /* luminozitatea de baza */
+      tw: Math.random() * 0.9 + 0.2,    /* cat de repede licareste */
+      ph: Math.random() * 6.283,
+      dx: (Math.random() - 0.5) * 0.05, /* plutesc foarte incet */
+      dy: (Math.random() - 0.5) * 0.05,
     });
-    const ps = Array.from({length:N}, () => make(false));
-    (function tick(){
-      if (on){
-        ctx.clearRect(0,0,cv.width,cv.height);
-        for (const p of ps){
-          p.y -= p.s; p.x += p.d + Math.sin(p.y*.012)*.18; p.a -= .0009;
-          if (p.y < -12 || p.a <= 0) Object.assign(p, make(true));
-          ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 6.283);
-          ctx.fillStyle = `rgba(242,166,74,${p.a})`;
-          ctx.shadowColor = 'rgba(242,166,74,.7)'; ctx.shadowBlur = 6; ctx.fill();
-        }
+
+    const size = () => {
+      const oldW = W, oldH = H;
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      W = window.innerWidth; H = window.innerHeight;
+      cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      if (!ps.length){
+        ps = Array.from({ length: W < 860 ? 70 : 150 }, make);
+      } else {
+        /* Pe telefon bara de adresa se ascunde la scroll si asta da 'resize'.
+           Daca am regenera stelele aici, ar sari dintr-un loc in altul —
+           asa ca doar le reasezam proportional. */
+        const sx = oldW ? W / oldW : 1, sy = oldH ? H / oldH : 1;
+        for (const s of ps){ s.x *= sx; s.y *= sy; }
       }
-      requestAnimationFrame(tick);
-    })();
-    new IntersectionObserver(es => es.forEach(e => on = e.isIntersecting), {threshold:0}).observe(host);
+    };
+    size();
+    let rsz; window.addEventListener('resize', () => {
+      clearTimeout(rsz);
+      rsz = setTimeout(() => { size(); if (reduceMotion) tick(0); }, 150);
+    });
+
+    function tick(now){
+      if (!reduceMotion) requestAnimationFrame(tick);   /* fara animatie: un singur cadru */
+      if (document.hidden) return;
+      const light = document.documentElement.getAttribute('data-theme') === 'light';
+      const rgb = light ? '47,98,173' : '226,236,255';
+      const mul = light ? 0.55 : 1;
+      const t = (now || 0) * 0.001;
+
+      ctx.clearRect(0, 0, W, H);
+      ctx.shadowColor = 'rgba(' + rgb + ',.55)';
+      for (const s of ps){
+        if (!reduceMotion){ s.x += s.dx; s.y += s.dy; }
+        if (s.x < -4) s.x = W + 4; else if (s.x > W + 4) s.x = -4;
+        if (s.y < -4) s.y = H + 4; else if (s.y > H + 4) s.y = -4;
+        const a = Math.max(0, (s.a + (reduceMotion ? 0 : Math.sin(t * s.tw + s.ph) * 0.2)) * mul);
+        ctx.shadowBlur = s.r > 1.05 ? 6 : 0;
+        ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, 6.283);
+        ctx.fillStyle = 'rgba(' + rgb + ',' + a.toFixed(3) + ')';
+        ctx.fill();
+      }
+      ctx.shadowBlur = 0;
+    }
+    tick(0);
   }
 })();
